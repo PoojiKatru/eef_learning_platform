@@ -17,14 +17,14 @@ function NotifPanel({ onClose }) {
   const ref = useRef();
 
   useEffect(() => {
-    api.get('/notifications/').then(r => setNotifs(r.data));
+    api.get('/notifications/').then(r => setNotifs(r.data)).catch(() => {});
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
   const markAll = async () => {
-    await api.post('/notifications/read-all');
+    await api.post('/notifications/read-all').catch(() => {});
     setNotifs(notifs.map(n => ({ ...n, is_read: true })));
   };
 
@@ -75,9 +75,11 @@ export default function AppLayout({ navItems, title, children }) {
   const [showNotifs, setShowNotifs] = useState(false);
 
   useEffect(() => {
-    const fetch = () => api.get('/notifications/unread-count').then(r => setUnread(r.data.count)).catch(() => {});
-    fetch();
-    const interval = setInterval(fetch, 30000);
+    const fetchUnread = () => api.get('/notifications/unread-count')
+      .then(r => setUnread(r.data.count))
+      .catch(() => {});
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, []);
 
