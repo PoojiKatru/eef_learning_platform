@@ -31,18 +31,20 @@ function Overview() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([
-      api.get('/users/pending'),
-      api.get('/users/all'),
-      api.get('/classrooms/')
-    ]).then(([p, u, c]) => {
-      setPending(p.data.slice(0, 3));
-      setStats({ pending: p.data.length, users: u.data.length, classrooms: c.data.length });
-    });
+    api.get('/users/pending').then(r => {
+      setPending(r.data.slice(0, 3));
+      setStats(s => ({ ...s, pending: r.data.length }));
+    }).catch(() => {});
+    api.get('/users/all').then(r => {
+      setStats(s => ({ ...s, users: r.data.length }));
+    }).catch(() => {});
+    api.get('/classrooms/').then(r => {
+      setStats(s => ({ ...s, classrooms: r.data.length }));
+    }).catch(() => {});
   }, []);
 
   const approve = async (id) => {
-    await api.post(`/users/${id}/approve`);
+    await api.post(`/users/${id}/approve`).catch(() => {});
     setPending(pending.filter(u => u.id !== id));
     setStats(s => ({ ...s, pending: s.pending - 1 }));
   };
@@ -79,7 +81,7 @@ function Overview() {
               </div>
               <div className="flex-center gap-2">
                 <button className="btn btn-primary btn-sm" onClick={() => approve(u.id)}>✓ Approve</button>
-                <button className="btn btn-danger btn-sm" onClick={() => api.post(`/users/${u.id}/reject`).then(() => setPending(pending.filter(x => x.id !== u.id)))}>✗ Reject</button>
+                <button className="btn btn-danger btn-sm" onClick={() => api.post(`/users/${u.id}/reject`).catch(() => {}).then(() => setPending(pending.filter(x => x.id !== u.id)))}>✗ Reject</button>
               </div>
             </div>
           ))}
@@ -91,14 +93,14 @@ function Overview() {
 
 function Approvals() {
   const [pending, setPending] = useState([]);
-  useEffect(() => { api.get('/users/pending').then(r => setPending(r.data)); }, []);
+  useEffect(() => { api.get('/users/pending').then(r => setPending(r.data)).catch(() => {}); }, []);
 
   const approve = async (id) => {
-    await api.post(`/users/${id}/approve`);
+    await api.post(`/users/${id}/approve`).catch(() => {});
     setPending(pending.filter(u => u.id !== id));
   };
   const reject = async (id) => {
-    await api.post(`/users/${id}/reject`);
+    await api.post(`/users/${id}/reject`).catch(() => {});
     setPending(pending.filter(u => u.id !== id));
   };
 
@@ -136,7 +138,7 @@ function Approvals() {
 function Users() {
   const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('all');
-  useEffect(() => { api.get('/users/all').then(r => setUsers(r.data)); }, []);
+  useEffect(() => { api.get('/users/all').then(r => setUsers(r.data)).catch(() => {}); }, []);
 
   const filtered = filter === 'all' ? users : users.filter(u => u.role === filter);
 
@@ -183,28 +185,28 @@ function Classrooms() {
   const colors = ['#0d9488','#0891b2','#7c3aed','#db2777','#ea580c','#65a30d','#dc2626','#2563eb'];
 
   useEffect(() => {
-    api.get('/classrooms/').then(r => setClassrooms(r.data));
-    api.get('/users/educators').then(r => setEducators(r.data));
-    api.get('/users/students').then(r => setStudents(r.data));
+    api.get('/classrooms/').then(r => setClassrooms(r.data)).catch(() => {});
+    api.get('/users/educators').then(r => setEducators(r.data)).catch(() => {});
+    api.get('/users/students').then(r => setStudents(r.data)).catch(() => {});
   }, []);
 
   const createClass = async () => {
-    const r = await api.post('/classrooms/', newClass);
-    setClassrooms([...classrooms, r.data]);
-    setShowCreate(false);
-    setNewClass({ name: '', subject: '', description: '', color: '#0d9488' });
+    const r = await api.post('/classrooms/', newClass).catch(() => {});
+    if (r) {
+      setClassrooms([...classrooms, r.data]);
+      setShowCreate(false);
+      setNewClass({ name: '', subject: '', description: '', color: '#0d9488' });
+    }
   };
 
   const assignStudent = async (classId, studentId) => {
-    await api.post(`/classrooms/${classId}/assign-student`, { user_id: studentId });
-    const r = await api.get('/classrooms/');
-    setClassrooms(r.data);
+    await api.post(`/classrooms/${classId}/assign-student`, { user_id: studentId }).catch(() => {});
+    api.get('/classrooms/').then(r => setClassrooms(r.data)).catch(() => {});
   };
 
   const assignEducator = async (classId, educatorId) => {
-    await api.post(`/classrooms/${classId}/assign-educator`, { educator_id: educatorId, is_admin: false });
-    const r = await api.get('/classrooms/');
-    setClassrooms(r.data);
+    await api.post(`/classrooms/${classId}/assign-educator`, { educator_id: educatorId, is_admin: false }).catch(() => {});
+    api.get('/classrooms/').then(r => setClassrooms(r.data)).catch(() => {});
   };
 
   return (
@@ -280,25 +282,21 @@ function Classrooms() {
               <h3>Manage: {showManage.name}</h3>
               <button onClick={() => setShowManage(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94a3b8' }}>×</button>
             </div>
-            
             <h4 style={{ marginBottom: 10, fontSize: 14, color: '#64748b' }}>Add Educator</h4>
             <select className="form-select" onChange={e => { if (e.target.value) assignEducator(showManage.id, e.target.value); }} defaultValue="">
               <option value="">Select educator...</option>
-              {educators.filter(e => !showManage.educators?.find(x => x.id === e.id)).map(e => (
+              {educators.filter(e => !showManage.educators?.find(x => x.id === parseInt(e.id))).map(e => (
                 <option key={e.id} value={e.id}>{e.full_name}</option>
               ))}
             </select>
-
             <div className="divider" />
-
             <h4 style={{ marginBottom: 10, fontSize: 14, color: '#64748b' }}>Add Student</h4>
             <select className="form-select" onChange={e => { if (e.target.value) assignStudent(showManage.id, e.target.value); }} defaultValue="">
               <option value="">Select student...</option>
-              {students.filter(s => !showManage.students?.find(x => x.id === s.id)).map(s => (
+              {students.filter(s => !showManage.students?.find(x => x.id === parseInt(s.id))).map(s => (
                 <option key={s.id} value={s.id}>{s.full_name}</option>
               ))}
             </select>
-
             <div className="divider" />
             <div style={{ fontSize: 13, color: '#64748b' }}>
               <strong>Educators:</strong> {showManage.educators?.map(e => e.full_name).join(', ') || 'None'}
@@ -315,7 +313,7 @@ function Classrooms() {
 function MyClasses() {
   const [classrooms, setClassrooms] = useState([]);
   const navigate = useNavigate();
-  useEffect(() => { api.get('/classrooms/').then(r => setClassrooms(r.data)); }, []);
+  useEffect(() => { api.get('/classrooms/').then(r => setClassrooms(r.data)).catch(() => {}); }, []);
 
   return (
     <div>
