@@ -13,7 +13,7 @@ class RegisterRequest(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: str  # educator or student
+    role: str
 
     @validator("password")
     def password_strength(cls, v):
@@ -57,7 +57,6 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     
-    # Notify all admins
     admins = db.query(models.User).filter(models.User.role == models.UserRole.admin).all()
     for admin in admins:
         notif = models.Notification(
@@ -82,7 +81,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     if user.status == models.AccountStatus.rejected:
         raise HTTPException(403, "Account has been rejected")
     
-    token = auth_utils.create_token({"sub": user.id})
+    token = auth_utils.create_token({"sub": str(user.id)})
     return {
         "access_token": token,
         "user": {
@@ -121,7 +120,6 @@ def me(current_user: models.User = Depends(auth_utils.get_current_user)):
 
 @router.post("/seed-admin")
 def seed_admin(db: Session = Depends(get_db)):
-    """One-time setup: create first admin"""
     if db.query(models.User).filter(models.User.role == models.UserRole.admin).count() > 0:
         raise HTTPException(400, "Admin already exists")
     admin = models.User(
