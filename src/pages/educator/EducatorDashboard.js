@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
   { icon: '⚡', label: 'Overview', path: '/educator' },
-  { icon: '📚', label: 'My Classes', path: '/educator/classes' },
+  { icon: '📚', label: 'My Classes', path: '/educator' },
   { icon: '📅', label: 'Schedule', path: '/educator/schedule' },
   { icon: '📝', label: 'Homework & Quizzes', path: '/educator/homework' },
   { icon: '💬', label: 'Messages', path: '/educator/messages' },
